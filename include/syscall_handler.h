@@ -43,7 +43,7 @@ enum _obj_init_check {
  *             or uninitialized state, or that we don't care
  * @return 0 If the object is valid
  *         -EBADF if not a valid object of the specified type
- *         -EPERM If the caller does not have permissions
+ *         -EACCES If the caller does not have permissions
  *         -EINVAL Object is not initialized
  */
 int z_object_validate(struct _k_object *ko, enum k_objects otype,
@@ -259,7 +259,7 @@ extern int z_user_string_copy(char *dst, const char *src, size_t maxlen);
 #define Z_OOPS(expr) \
 	do { \
 		if (expr) { \
-			arch_syscall_oops(_current_cpu->syscall_frame); \
+			arch_syscall_oops(_current->syscall_frame); \
 		} \
 	} while (false)
 
@@ -507,6 +507,19 @@ static inline int z_obj_validation_check(struct _k_object *ko,
 
 #define Z_SYSCALL_OBJ_NEVER_INIT(ptr, type) \
 	Z_SYSCALL_IS_OBJ(ptr, type, _OBJ_INIT_FALSE)
+
+static inline int z_syscall_check_obj_full(void *ptr, enum k_objects type,
+		enum _obj_init_check init_state)
+{
+	return z_obj_validation_check(z_object_find(ptr), ptr, type,
+			init_state);
+}
+
+static inline int k_syscall_obj_init(void *ptr, enum k_objects type)
+{
+	return z_syscall_check_obj_full(ptr, type, _OBJ_INIT_ANY);
+}
+
 
 #include <driver-validation.h>
 

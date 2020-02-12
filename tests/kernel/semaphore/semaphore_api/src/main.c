@@ -10,6 +10,9 @@
 #define SEM_INIT_VAL (0U)
 #define SEM_MAX_VAL (10U)
 #define sem_give_from_isr(sema) irq_offload(isr_sem_give, sema)
+#define sem_take_from_isr(sema) irq_offload(isr_sem_take, sema)
+#define sem_take_from_isr_with_timeout(sema) \
+	irq_offload(isr_sem_take_with_timeout, sema)
 /* Current stack size for ztest is 512 bytes,
  * so 39 semaphores is max for the reel board */
 #define MAX_COUNT 39
@@ -29,7 +32,7 @@ K_THREAD_STACK_DEFINE(stack_2, STACK_SIZE);
 K_THREAD_STACK_DEFINE(stack_3, STACK_SIZE);
 K_THREAD_STACK_DEFINE(stack_4, STACK_SIZE);
 
-struct k_sem sem_1;
+struct k_sem sem_1, sem_2;
 struct k_thread thread_1, thread_2, thread_3, thread_4;
 u32_t counter;
 
@@ -77,6 +80,15 @@ void test_k_sem_init(void)
 
 	ret = k_sem_init(&sem_1, SEM_MAX_VAL + 1, SEM_MAX_VAL);
 	zassert_true(ret == -EINVAL, "k_sem_init with invalid args");
+	
+	ret = k_sem_init(&sem_2, SEM_MAX_VAL + 1, SEM_MAX_VAL);
+	zassert_true(ret == -EACCES, "current thread doesn't have "
+			"permission on this semaphore");
+	
+	ret = k_sem_init((struct k_sem *)&thread_1, 
+			SEM_MAX_VAL + 1, SEM_MAX_VAL);
+	zassert_true(ret == -EBADF,
+			"k_sem_init with invalid kobject type");
 }
 
 
@@ -424,6 +436,20 @@ void isr_sem_give(void *sem)
 	k_sem_give((struct k_sem *)sem);
 }
 
+/* Helper function:
+ * take a semaphore in an interrupt context */
+void isr_sem_take(void *sem)
+{
+	k_sem_take((struct k_sem *)sem, K_NO_WAIT);
+}
+
+/* Helper function:
+ * take a semaphore with timeout in an interrupt context */
+void isr_sem_take_with_timeout(void *sem)
+{
+	k_sem_take((struct k_sem *)sem, SEM_TIMEOUT);
+}
+
 /*
  * @brief Test semaphore count when given by an ISR
  * @ingroup kernel semaphore tests
@@ -443,6 +469,20 @@ void test_k_sem_give_from_isr(void)
 				"sem_count missmatch expected %d, got %d",
 				(i + 1), sem_count);
 	}
+
+	for (int i = 5; i > 1; i--) {
+		sem_take_from_isr(&sem_1);
+
+		sem_count = k_sem_count_get(&sem_1);
+		zassert_true(sem_count == (i - 1),
+				"sem_count missmatch expected %d, got %d",
+				(i - 1), sem_count);
+	}
+
+	sem_take_from_isr_with_timeout(&sem_1);
+	zassert_true(sem_count == 1,
+			"sem_count missmatch expected %d, got %d",
+			1, sem_count);
 }
 
 

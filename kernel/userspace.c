@@ -490,7 +490,7 @@ void z_dump_object_error(int retval, void *obj, struct _k_object *ko,
 	case -EBADF:
 		LOG_ERR("%p is not a valid %s", obj, otype_to_str(otype));
 		break;
-	case -EPERM:
+	case -EACCES:
 		dump_permission_error(ko);
 		break;
 	case -EINVAL:
@@ -549,7 +549,7 @@ int z_object_validate(struct _k_object *ko, enum k_objects otype,
 	 * thread be granted access first, even for uninitialized objects
 	 */
 	if (unlikely(thread_perms_test(ko) == 0)) {
-		return -EPERM;
+		return -EACCES;
 	}
 
 	/* Initialization state checks. _OBJ_INIT_ANY, we don't care */
@@ -760,7 +760,7 @@ static uintptr_t handler_bad_syscall(uintptr_t bad_id, uintptr_t arg2,
 				     void *ssf)
 {
 	LOG_ERR("Bad system call id %" PRIuPTR " invoked", bad_id);
-	arch_syscall_oops(_current_cpu->syscall_frame);
+	arch_syscall_oops(_current->syscall_frame);
 	CODE_UNREACHABLE; /* LCOV_EXCL_LINE */
 }
 
@@ -769,7 +769,7 @@ static uintptr_t handler_no_syscall(uintptr_t arg1, uintptr_t arg2,
 				    uintptr_t arg5, uintptr_t arg6, void *ssf)
 {
 	LOG_ERR("Unimplemented system call");
-	arch_syscall_oops(_current_cpu->syscall_frame);
+	arch_syscall_oops(_current->syscall_frame);
 	CODE_UNREACHABLE; /* LCOV_EXCL_LINE */
 }
 

@@ -396,7 +396,8 @@ struct bt_mesh_model_pub {
 
 	u16_t addr;         /**< Publish Address. */
 	u16_t key:12,       /**< Publish AppKey Index. */
-	      cred:1;       /**< Friendship Credentials Flag. */
+	      cred:1,       /**< Friendship Credentials Flag. */
+	      send_rel:1;   /**< Force reliable sending (segment acks) */
 
 	u8_t  ttl;          /**< Publish Time to Live. */
 	u8_t  retransmit;   /**< Retransmit Count & Interval Steps. */
@@ -423,6 +424,9 @@ struct bt_mesh_model_pub {
 	 *  will be called periodically and is expected to update
 	 *  @ref bt_mesh_model_pub.msg with a valid publication
 	 *  message.
+	 *
+	 *  If the callback returns non-zero, the publication is skipped
+	 *  and will resume on the next periodic publishing interval.
 	 *
 	 *  @param mod The Model the Publication Context belogs to.
 	 *
